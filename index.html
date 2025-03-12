@@ -35,7 +35,7 @@
         .error {
             color: #e74c3c;
         }
-        #generateBtn {
+        button {
             background-color: #3498db;
             color: white;
             border: none;
@@ -43,9 +43,58 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 1rem;
+            margin: 5px;
         }
-        #generateBtn:hover {
+        button:hover {
             background-color: #2980b9;
+        }
+        #adminPanel {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: none;
+        }
+        #passwordPrompt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+        .passwordBox {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 300px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .enabled {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disabled {
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -54,12 +103,58 @@
         <h1>Attendance Code</h1>
         <div id="result">----</div>
         <button id="generateBtn">Generate Attendance Code</button>
+        
+        <div style="margin-top: 20px;">
+            <button id="adminBtn">Admin Controls</button>
+        </div>
+        
+        <div id="adminPanel">
+            <h3>Admin Controls</h3>
+            <div id="statusIndicator" class="status">
+                Status: Checking...
+            </div>
+            <button id="enableBtn">Enable Code Generator</button>
+            <button id="disableBtn">Disable Code Generator</button>
+            <button id="changePassBtn">Change Password</button>
+        </div>
+    </div>
+    
+    <!-- Password Prompt Modal -->
+    <div id="passwordPrompt">
+        <div class="passwordBox">
+            <h3 id="promptTitle">Enter Admin Password</h3>
+            <p id="promptMessage">Please enter the admin password to access controls.</p>
+            <input type="password" id="passwordInput" placeholder="Password">
+            <div>
+                <button id="submitPasswordBtn">Submit</button>
+                <button id="cancelPasswordBtn">Cancel</button>
+            </div>
+            <p id="passwordError" style="color: red; display: none;">Incorrect password!</p>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const resultElement = document.getElementById('result');
             const generateBtn = document.getElementById('generateBtn');
+            const adminBtn = document.getElementById('adminBtn');
+            const adminPanel = document.getElementById('adminPanel');
+            const enableBtn = document.getElementById('enableBtn');
+            const disableBtn = document.getElementById('disableBtn');
+            const changePassBtn = document.getElementById('changePassBtn');
+            const passwordPrompt = document.getElementById('passwordPrompt');
+            const passwordInput = document.getElementById('passwordInput');
+            const submitPasswordBtn = document.getElementById('submitPasswordBtn');
+            const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+            const passwordError = document.getElementById('passwordError');
+            const promptTitle = document.getElementById('promptTitle');
+            const promptMessage = document.getElementById('promptMessage');
+            const statusIndicator = document.getElementById('statusIndicator');
+            
+            // Default password if none set: "admin123"
+            if (!localStorage.getItem('adminPassword')) {
+                localStorage.setItem('adminPassword', 'admin123');
+            }
             
             // Check service status from localStorage (default to enabled)
             let isServiceEnabled = localStorage.getItem('codeServiceEnabled');
@@ -68,6 +163,17 @@
             if (isServiceEnabled === null) {
                 isServiceEnabled = 'true';
                 localStorage.setItem('codeServiceEnabled', isServiceEnabled);
+            }
+            
+            // Update status indicator
+            function updateStatusIndicator() {
+                if (isServiceEnabled === 'true') {
+                    statusIndicator.textContent = 'Status: Code Generator is ENABLED';
+                    statusIndicator.className = 'status enabled';
+                } else {
+                    statusIndicator.textContent = 'Status: Code Generator is DISABLED';
+                    statusIndicator.className = 'status disabled';
+                }
             }
             
             // Function to generate random 4-digit attendance code
@@ -89,18 +195,97 @@
             // Generate code on page load
             generateAttendanceCode();
             
-            // Secret admin control - Press Alt+Shift+T to toggle service
-            document.addEventListener('keydown', function(event) {
-                // Check for Alt+Shift+T key combination
-                if (event.altKey && event.shiftKey && event.key === 'T') {
-                    isServiceEnabled = isServiceEnabled === 'true' ? 'false' : 'true';
-                    localStorage.setItem('codeServiceEnabled', isServiceEnabled);
+            // Admin button click handler
+            adminBtn.addEventListener('click', function() {
+                // Reset password input
+                passwordInput.value = '';
+                passwordError.style.display = 'none';
+                
+                // Configure prompt for admin access
+                promptTitle.textContent = 'Enter Admin Password';
+                promptMessage.textContent = 'Please enter the admin password to access controls.';
+                
+                // Set action for password submission
+                submitPasswordBtn.onclick = function() {
+                    const enteredPassword = passwordInput.value;
+                    const storedPassword = localStorage.getItem('adminPassword');
                     
-                    // Update the display
-                    generateAttendanceCode();
+                    if (enteredPassword === storedPassword) {
+                        // Hide prompt
+                        passwordPrompt.style.display = 'none';
+                        // Show admin panel
+                        adminPanel.style.display = 'block';
+                        // Update status indicator
+                        updateStatusIndicator();
+                    } else {
+                        passwordError.style.display = 'block';
+                    }
+                };
+                
+                // Show password prompt
+                passwordPrompt.style.display = 'flex';
+            });
+            
+            // Cancel button in password prompt
+            cancelPasswordBtn.addEventListener('click', function() {
+                passwordPrompt.style.display = 'none';
+            });
+            
+            // Enable button click handler
+            enableBtn.addEventListener('click', function() {
+                isServiceEnabled = 'true';
+                localStorage.setItem('codeServiceEnabled', isServiceEnabled);
+                generateAttendanceCode();
+                updateStatusIndicator();
+            });
+            
+            // Disable button click handler
+            disableBtn.addEventListener('click', function() {
+                isServiceEnabled = 'false';
+                localStorage.setItem('codeServiceEnabled', isServiceEnabled);
+                generateAttendanceCode();
+                updateStatusIndicator();
+            });
+            
+            // Change password button
+            changePassBtn.addEventListener('click', function() {
+                // Reset password input
+                passwordInput.value = '';
+                passwordError.style.display = 'none';
+                
+                // Configure prompt for changing password
+                promptTitle.textContent = 'Change Admin Password';
+                promptMessage.textContent = 'Enter a new admin password:';
+                
+                // Set action for password submission
+                submitPasswordBtn.onclick = function() {
+                    const newPassword = passwordInput.value;
                     
-                    // Show status message
-                    alert('Attendance Code Service ' + (isServiceEnabled === 'true' ? 'enabled' : 'disabled'));
+                    if (newPassword.trim() !== '') {
+                        localStorage.setItem('adminPassword', newPassword);
+                        passwordPrompt.style.display = 'none';
+                        alert('Password has been changed successfully!');
+                    } else {
+                        passwordError.textContent = 'Password cannot be empty!';
+                        passwordError.style.display = 'block';
+                    }
+                };
+                
+                // Show password prompt
+                passwordPrompt.style.display = 'flex';
+            });
+            
+            // Close password prompt when clicking outside the box
+            passwordPrompt.addEventListener('click', function(event) {
+                if (event.target === passwordPrompt) {
+                    passwordPrompt.style.display = 'none';
+                }
+            });
+            
+            // Listen for Enter key in password input
+            passwordInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    submitPasswordBtn.click();
                 }
             });
         });
